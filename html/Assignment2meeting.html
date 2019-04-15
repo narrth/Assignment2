@@ -6,7 +6,7 @@
    <!--
 This HTML was auto-generated from MATLAB code.
 To make changes, update the MATLAB code and republish this document.
-      --><title>ELEC 4700 Assignment-2 Finite Difference Method</title><meta name="generator" content="MATLAB 9.5"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2019-03-07"><meta name="DC.source" content="Assignment2meeting.m"><style type="text/css">
+      --><title>ELEC 4700 Assignment-2 Finite Difference Method</title><meta name="generator" content="MATLAB 9.5"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2019-04-14"><meta name="DC.source" content="Assignment2meeting.m"><style type="text/css">
 html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,sub,sup,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
 
 html { min-height:100%; margin-bottom:1px; }
@@ -67,26 +67,35 @@ table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px soli
 
 
   </style></head><body><div class="content"><h1>ELEC 4700 Assignment-2 Finite Difference Method</h1><p>Due: Sunday, Feb. 24, 2019 11:59PM By: Narrthanan Seevananthan</p><pre class="codeinput">clear;
+clc;
 
-<span class="comment">%V = Vo @ x = 0</span>
-<span class="comment">%V = 0 @ x = L</span>
+<span class="comment">%V = Vo @ x = 0, x = L</span>
+<span class="comment">%V = 0 @ y = 0, y = W</span>
 L = 3;     <span class="comment">%Length of the rectangular region</span>
 W = 2;
 Vo = 1;     <span class="comment">%Initial voltage</span>
 
 <span class="comment">%mesh density and mesh points</span>
+<span class="comment">%adjusting the mesh density changes the distance between the nodes,</span>
+<span class="comment">%resulting in a chnage in the precision of the solution</span>
+<span class="comment">%the mesh density also affects the number of points in the matrix making</span>
+<span class="comment">%the simulation faster or slower</span>
 dx = 0.05;
 dy = 0.05;
+
 nx = L/dx;
 ny = W/dy;
 
+<span class="comment">%Equations pulled from Griffiths &#8220;Intro to Electrodynamics 3e</span>
+<span class="comment">%x2 beacaue there are two x and y differentials</span>
 VXY = -2*(1/(dx^2) + 1/(dy^2));
 VX = 1/(dx^2);
 VY = 1/(dy^2);
 
-G = zeros(nx*ny,nx*ny);
+G = sparse(nx*ny,nx*ny);
 B = zeros(nx*ny,1);
 
+<span class="comment">%chnaged the convention of i&amp;j to x&amp;y</span>
 <span class="comment">%x = i</span>
 <span class="comment">%y = j</span>
 <span class="keyword">for</span> x = 1:nx
@@ -94,64 +103,109 @@ B = zeros(nx*ny,1);
         n = y + (x-1)*ny;
 
         <span class="keyword">if</span> x == 1 || x == nx
-            G(n,:) = Vo;
-            B(n) = 1;
+<span class="comment">%             G(n,:) = Vo;</span>
+            G(n,n) = 1;
+            B(n) = Vo;
 
         <span class="keyword">elseif</span> y == 1 || y == ny
-            G(n,:) = 0;
-
+<span class="comment">%             G(n,:) = 0;</span>
+            G(n,n) = 1;
+            b(n) = 0;
 
         <span class="keyword">else</span>
+<span class="comment">%changed the convention of nxm&amp;nxp to nxp&amp;nxn</span>
             nxp = y + (x-2)*ny;      <span class="comment">%previous x value</span>
             nxn = y + x*ny;          <span class="comment">%next x value</span>
             nyp = y-1 + (x-1)*ny;    <span class="comment">%previous y value</span>
             nyn = y+1 + (x-1)*ny;    <span class="comment">%next y value</span>
 
-            G(n,n) = -VXY;
+            G(n,n) = VXY;
             G(n,nxp) = VX;
             G(n,nxn) = VX;
             G(n,nyp) = VY;
             G(n,nyn) = VY;
+
+<span class="comment">%values for fixed mesh grid</span>
+<span class="comment">%             G(n,n) = -4;</span>
+<span class="comment">%             G(n,nxp) = 1;</span>
+<span class="comment">%             G(n,nxn) = 1;</span>
+<span class="comment">%             G(n,nyp) = 1;</span>
+<span class="comment">%             G(n,nyn) = 1;</span>
+
         <span class="keyword">end</span>
 
     <span class="keyword">end</span>
 <span class="keyword">end</span>
 
+
+<span class="comment">%having an error with the matrix left division because the vectors contain</span>
+<span class="comment">%0s so must divide more carefully</span>
+<span class="comment">%turns out error was from incorrect boundary contions (ny long band of 1s)</span>
+<span class="comment">%resulting in an incorrect solution being generated</span>
+
+<span class="comment">%the second problem with the E matrix was you were multiplying the</span>
+<span class="comment">%transpose not the inverse.... use inv() instead of "'"</span>
+
 V = G\B;
+<span class="comment">%E = inv(G)*B;</span>
 
-V = reshape(V,[ny,nx]);
 
+<span class="comment">%because B is a vector after MLdivision "\" the solution(V) is a vector</span>
+<span class="comment">%which must be reshaped to correctly plot</span>
+V_2 = reshape(V,[ny,nx]);
+<span class="comment">%E_2 = reshape(E,[ny,nx]);</span>
+
+<span class="comment">%plots from part 1(a) (code has been changes does not work anymore)</span>
 figure(<span class="string">'Name'</span>,<span class="string">'Visualize sparsity pattern'</span>);
-<span class="comment">%spy(G)</span>
+spy(G);
 
-surf(V)
-</pre><pre class="codeoutput">Warning: Matrix is singular to working precision. 
-</pre><img vspace="5" hspace="5" src="Assignment2meeting_01.png" alt=""> <p class="footer"><br><a href="https://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2018b</a><br></p></div><!--
+
+
+
+<span class="comment">%plot from 1(b)</span>
+figure(<span class="string">'Name'</span>,<span class="string">'Surface plot of V(x, y)'</span>);
+surf(V_2);
+<span class="comment">%surf(E_2)</span>
+
+<span class="comment">%for part2 make a new matrix to hold the conductivity, the conductivity in</span>
+<span class="comment">%the boxes should be very low making the voltage passing through them very</span>
+<span class="comment">%resistive</span>
+<span class="comment">%1/R = conuctivity, V = I*R</span>
+</pre><img vspace="5" hspace="5" src="Assignment2meeting_01.png" alt=""> <img vspace="5" hspace="5" src="Assignment2meeting_02.png" alt=""> <p class="footer"><br><a href="https://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2018b</a><br></p></div><!--
 ##### SOURCE BEGIN #####
 %% ELEC 4700 Assignment-2 Finite Difference Method
 % Due: Sunday, Feb. 24, 2019 11:59PM
 % By: Narrthanan Seevananthan
 clear;
+clc;
 
-%V = Vo @ x = 0
-%V = 0 @ x = L
+%V = Vo @ x = 0, x = L
+%V = 0 @ y = 0, y = W
 L = 3;     %Length of the rectangular region
 W = 2;
 Vo = 1;     %Initial voltage
 
 %mesh density and mesh points
+%adjusting the mesh density changes the distance between the nodes,
+%resulting in a chnage in the precision of the solution
+%the mesh density also affects the number of points in the matrix making
+%the simulation faster or slower
 dx = 0.05;
 dy = 0.05;
+
 nx = L/dx;
 ny = W/dy;
 
+%Equations pulled from Griffiths “Intro to Electrodynamics 3e
+%x2 beacaue there are two x and y differentials
 VXY = -2*(1/(dx^2) + 1/(dy^2));
 VX = 1/(dx^2);
 VY = 1/(dy^2);
 
-G = zeros(nx*ny,nx*ny);
+G = sparse(nx*ny,nx*ny);
 B = zeros(nx*ny,1);
 
+%chnaged the convention of i&j to x&y
 %x = i
 %y = j
 for x = 1:nx
@@ -159,37 +213,75 @@ for x = 1:nx
         n = y + (x-1)*ny;
         
         if x == 1 || x == nx
-            G(n,:) = Vo;
-            B(n) = 1;
+%             G(n,:) = Vo;
+            G(n,n) = 1;
+            B(n) = Vo;
             
         elseif y == 1 || y == ny
-            G(n,:) = 0;
-            
+%             G(n,:) = 0;
+            G(n,n) = 1;
+            b(n) = 0;
             
         else
+%changed the convention of nxm&nxp to nxp&nxn
             nxp = y + (x-2)*ny;      %previous x value
             nxn = y + x*ny;          %next x value
             nyp = y-1 + (x-1)*ny;    %previous y value
             nyn = y+1 + (x-1)*ny;    %next y value
             
-            G(n,n) = -VXY;
+            G(n,n) = VXY;
             G(n,nxp) = VX;
             G(n,nxn) = VX;
             G(n,nyp) = VY;
             G(n,nyn) = VY;
+            
+%values for fixed mesh grid            
+%             G(n,n) = -4;
+%             G(n,nxp) = 1;
+%             G(n,nxn) = 1;
+%             G(n,nyp) = 1;
+%             G(n,nyn) = 1;
+            
         end
         
     end
 end
 
+
+%having an error with the matrix left division because the vectors contain
+%0s so must divide more carefully
+%turns out error was from incorrect boundary contions (ny long band of 1s)
+%resulting in an incorrect solution being generated 
+
+%the second problem with the E matrix was you were multiplying the
+%transpose not the inverse.... use inv() instead of "'"
+
 V = G\B;
+%E = inv(G)*B;
 
-V = reshape(V,[ny,nx]);
 
+%because B is a vector after MLdivision "\" the solution(V) is a vector
+%which must be reshaped to correctly plot
+V_2 = reshape(V,[ny,nx]);
+%E_2 = reshape(E,[ny,nx]);
+
+%plots from part 1(a) (code has been changes does not work anymore)
 figure('Name','Visualize sparsity pattern');
-%spy(G)
+spy(G);
 
-surf(V)
+
+
+
+%plot from 1(b)
+figure('Name','Surface plot of V(x, y)');
+surf(V_2);
+%surf(E_2)
+
+%for part2 make a new matrix to hold the conductivity, the conductivity in
+%the boxes should be very low making the voltage passing through them very
+%resistive
+%1/R = conuctivity, V = I*R
+
 
 ##### SOURCE END #####
 --></body></html>
